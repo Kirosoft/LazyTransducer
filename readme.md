@@ -30,9 +30,10 @@ In this example data is pulled through the transformation and debug functions to
 
     10,6,2,12,8,4
 
-.transform() functions are applied to each element in the input stream
+.transform() functions are applied to each element in the input stream - transforming the input
 
-.transducer() functions are applied recursively to the input stream to greedily absorb the stream untill and undefined value is reached
+.transducer() 
+    functions are applied recursively to the input stream to greedily absorb the stream until an undefined value is received from the xdr
 
 e.g. the aggregateXfr function returns the same value it receives effectively pulling all the data through the stream and creating an aggregated result.
 

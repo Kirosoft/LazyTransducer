@@ -5,15 +5,23 @@
 var utils = require('./utils/utils-compiled.js');
 
 class Sequence  {
-    // TODO: make the param list variable
     constructor(parent, params) {
         this._parent = parent;
         this._params = params;
+        this._listeners = [];
+
+        // find the most upstream parent e.g. adam or eve :-)
+        // register as a listener
+        if (parent) {
+            let adam = parent._getParentSource();
+            adam.subscribe(this);
+        }
+
         return this;
     }
 
     arraySequence(sourceData, params) {
-        return new  ArraySequence(sourceData, params)
+        return new  ArraySequence(sourceData,null,params)
     }
 
     transducer(xfr, params) {
@@ -28,7 +36,7 @@ class Sequence  {
     merge(params) {
         let streams = utils.flatten(this, [].slice.call(arguments));
 
-        return new MergeSequence([], streams.reverse(), params);
+        return new MergeSequence(null, streams.reverse(), params);
     }
 
     _get() {
@@ -36,7 +44,7 @@ class Sequence  {
     }
 
     _getParentSource() {
-        return this._parent._getParentSource();
+        return this._parent ? this._parent._getParentSource() : this;
     }
 
     toArray(flattenResults = false) {
@@ -54,6 +62,20 @@ class Sequence  {
         return flattenResults ? utils.flatten(results) : results;
     }
 
+    subscribe(listener) {
+        this._listeners.push(listener);
+    }
+
+    _notify(data) {
+        this._listeners.forEach((listener) => {
+            listener._change(data);
+        })
+    }
+
+    _change(data) {
+        console.log("Change: "+data.toString());
+    }
+
     // each take a callback to receive data, for each upstream change
     // i.e. this function is
     each(callback) {
@@ -61,11 +83,11 @@ class Sequence  {
 
         return function() {};
     }
-};
+}
 
 class ArraySequence extends Sequence {
-    constructor(arrayData, params) {
-        super(null,params);
+    constructor(arrayData, parent=null, params=null) {
+        super(parent, params);
         this._arrayData = arrayData;
         this._pos = 0;
     };
@@ -77,12 +99,13 @@ class ArraySequence extends Sequence {
 
     _get() {
         // TODO: Use yield to make this async?
-        let item = this._arrayData[this._pos++];
-        return item ? item : undefined; // return undefined to indicate end of list
-    }
+        let item = this._arrayData[this._pos];
 
-    _getParentSource() {
-        return this;
+        if (item !== undefined) {
+            this._pos++;
+        }
+
+        return item; // return undefined to indicate end of list
     }
 
     append(newData) {
@@ -92,36 +115,51 @@ class ArraySequence extends Sequence {
 }
 
 class TransducerSequence extends Sequence {
-    constructor(parent, xfr, params) {
+    constructor(parent, _transducer, predicate, params) {
         super(parent, params);
-        this._xfr = xfr;
+        this._transducer = _transducer;
+        this._predicate = predicate;
+        this._cachedResult = undefined;
     };
 
     // eagerly consume the available streamusing the supplied step function to return a new value
-    // if the step functionr return undefined then terminate and return the result so far
+    // if the step function return undefined then terminate and return the result so far
     // if the step function returns a value, call the transform function to get a transformed value
     // if the xfrmed value == undefined then the result has been filtered.
-    // TODO: refactor typeof's
-    // TODO: refactor for tail recursion
-    _xdr(stepFunction, xfr, results=[], params={}, flattenResults=true) {
+    // Tail Recursive in ES6
+    _xdr(stepFunction, xdr, predicate, acc=[], params={}, flattenResults=true) {
 
         let newItem = stepFunction();
 
-        if (typeof(newItem) !== 'undefined') {
-            var xfrmValue = xfr(newItem);
-            if (xfrmValue) {
-                results.push(xfrmValue);
-            }
-            return this._xdr(stepFunction, xfr, results, params, flattenResults);
+        if (typeof(newItem) === 'undefined') {
+            return acc.length > 0 ? acc : undefined;
         } else {
-            return results.length > 0 ? [flattenResults ? utils.flatten(results) : result] : undefined;
+            let res = xdr(acc, newItem, predicate);
+
+            return res ? this._xdr(stepFunction, xdr, predicate, res, params, flattenResults) : acc;
         }
     };
 
     _get() {
 
-        // Take the current value and process the data via the transducer
-        return this._xdr(super._get.bind(this), this._xfr, [], this._params/*, flattenResults*/);
+        if (!this._cachedResult) {
+            // Take the current value and process the data via the transducer
+            let resArray = this._xdr(super._get.bind(this), this._transducer, this._predicate, [], this._params/*, flattenResults*/);
+            // Create a new array from the
+            if (resArray) {
+                this._cachedResult = new ArraySequence(resArray,this, this._params);
+            } else return resArray;
+        }
+
+        let res = this._cachedResult._get();
+
+        // When the underlying stream is exhausted, clear from the cache
+        if (typeof(res) === 'undefined') {
+            this._cachedResult = undefined;
+            // recurse back in-case new stuff is now available up-stream
+            res = this._get();
+        }
+        return res;
     }
 }
 
@@ -143,9 +181,10 @@ class TransformSequence extends Sequence {
 class MergeSequence extends ArraySequence {
 
     constructor(parent, streams, params) {
-        super([], params);
+        super(parent, params);
         this._parent = parent;
         this._streams = streams;
+        this._arrayData = [];
     };
 
     _get() {
@@ -174,8 +213,8 @@ class MergeSequence extends ArraySequence {
 }
 
 class SmartVarSequence extends Sequence {
-    constructor(smartVar, params) {
-        super(null,params);
+    constructor(parent, smartVar, params) {
+        super(parent,params);
 
         this._smartVar = smartVar;
         this.supportedPaths = [];
@@ -195,4 +234,4 @@ class SmartVarSequence extends Sequence {
 module.exports = {
     ArraySequence: ArraySequence,
     Sequence: Sequence
-}
+};

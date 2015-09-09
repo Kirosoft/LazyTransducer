@@ -7,12 +7,12 @@
 // 2) They always return a result, where null indicates the result was filtered out
 
 var utils = require('../utils/utils-compiled.js');
+var predicates = require('../predicates/predicates-compiled.js');
 
-exports.aggregateXfr = x => x;
 
 exports.incXfr = x => x + 1;
 
-exports.isEvenXfr = x => x % 2 == 0 ? x : null;
+exports.isEvenXfr = x => predicates.isEvenPdc(x) ? x : null;
 
 exports.debugXfr = (x,y) => {
     if (x) {
@@ -23,8 +23,9 @@ exports.debugXfr = (x,y) => {
             str = ''+ x;
         }
         console.log(y + str)
-    };
+    }
     return x;
 };
 
 
+exports.take = (x, max) => x;

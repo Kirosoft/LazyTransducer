@@ -4,6 +4,8 @@
 
 var lazy = require('./src/Sequence-compiled.js');
 var xfr = require('./src/transformers/transformers-compiled.js');
+var xdr = require('./src/transducers/transducers-compiled.js');
+var predicates = require('./src/predicates/predicates-compiled.js');
 
 var t1 = new lazy.ArraySequence([1,2,3,4]);
 var t2 = new lazy.ArraySequence([5,6,7,8]);
@@ -13,9 +15,11 @@ var res = t1
     //.transform(xfr.incXfr)
     .merge(t2, t3)
     .transform(xfr.incXfr)      // map op
-    .transform(xfr.isEvenXfr)
+    //.transform(xfr.isEvenXfr)
     .transform(xfr.debugXfr, 'merged event stream: ')
-    .transducer(xfr.aggregateXfr)
+    //.transducer(xdr.reduceXdr, predicates.everythingPdc)    // everything aggregated
+    .transducer(xdr.take2Xdr, predicates.everythingPdc)    // chunk into 2 element arrays
+    //.transducer(xdr.reduceXdr, predicates.notNullPdc)    // filter nulls
     .transform(xfr.debugXfr, 'aggregate event stream: ')
     .toArray();
 

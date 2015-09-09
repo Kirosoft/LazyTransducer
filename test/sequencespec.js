@@ -5,7 +5,16 @@ var xfr = require('../src/transformers/transformers-compiled.js');
 var assert = require("assert");
 
 describe('SequenceArray', function() {
-    describe('filter transforms', function () {
+    describe('combined filter transforms', function () {
+
+        new lazy.ArraySequence([1, 2, 3, 4,5, 6, 7, 8])
+                .transduce(xfr.Take, 1);
+    });
+});
+
+
+describe('SequenceArray', function() {
+    describe('combined filter transforms', function () {
 
         var t1 = new lazy.ArraySequence([1,2,3,4]);
         var t2 = new lazy.ArraySequence([5,6,7,8]);
@@ -17,7 +26,7 @@ describe('SequenceArray', function() {
             .transform(xfr.incXfr)      // map op
             .transform(xfr.isEvenXfr)
             .transform(xfr.debugXfr, 'merged event stream: ')
-            .transducer(xfr.aggregateXfr)
+            .transducer(xfr.aggregateXdr)
             .transform(xfr.debugXfr, 'aggregate event stream: ')
             .toArray();
 

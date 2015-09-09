@@ -120,7 +120,7 @@ exports.isObjLiteral = function isObjLiteral(_obj) {
                 })()
             )
     );
-}
+};
 
 exports.isFunction = function isFunction(functionToCheck) {
     var getType = {};
