@@ -1,0 +1,25 @@
+{
+  "name": "lazytransducer",
+  "version": "0.0.1",
+  "description": "Lazily evaluated functional transforms",
+  "main": "app-compiled.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kirosoft/LazyTransducer.git"
+  },
+  "keywords": [
+    "functional",
+    "transducers",
+    "lazy",
+    "javascript"
+  ],
+  "author": "Mark Norman",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Kirosoft/LazyTransducer/issues"
+  },
+  "homepage": "https://github.com/Kirosoft/LazyTransducer#readme"
+}
