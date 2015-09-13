@@ -76,7 +76,7 @@ exports.compareArrays = function compareArrays(tail,wildcard) {
             return false;
         }
     }
-}
+};
 
 
 //TODO: requires that the filter function is available on the supplied object (ob)
@@ -102,7 +102,7 @@ exports.removeFromArrayByValue = function removeFromArrayByValue(arr) {
         }
     }
     return arr;
-}
+};
 
 
 exports.isObjLiteral = function isObjLiteral(_obj) {

@@ -1,9 +1,18 @@
 
-# LazyTransducer
+# LazyTransducer (early work in progress)
 
 [Transducers are described by Rich Hickley](http://blog.cognitect.com/blog/2014/8/6/transducers-are-coming):
 
 'Transducers are a powerful and composable way to build algorithmic transformations that you can reuse in many contexts, and they're coming to Clojure core and core.async.'
+
+Key enhancements:
+
+* Full lazy evaluation of the data stream
+* Pluggable library of composeable transducer and transformer functions
+* Fluent style interface
+* Reactive 
+
+Note: Written using ES6/ES2015 javascript features
 
 Experimental javascript implementation of transducers with a lazily evaluated function chain. 
 
@@ -13,16 +22,16 @@ Experimental javascript implementation of transducers with a lazily evaluated fu
     var t3 = new lazy.ArraySequence([9,10,11,12]);
 
     var res = t1
-        //.transform(xfr.incXfr)
+        //.incXfr()
         .merge(t2, t3)              // merge in two other sequence sources
                                     // for each request and array result is produced e.g. [1,5,6] and then then [2,6,10] etc
                                    // this buffer then acts as an ArraySequence until empty e.g. 1 is returned then 5 then 6 and then the input streams 
                                    // are pulled from again to give [2,6,10] in the buffer and returning 2,6 and then 10
-        .transform(xfr.incXfr)      // simple +1 function applied to each element in turn
-        .transform(xfr.isEvenXfr)   // filtering transform, returns null to indicate a filtered result
-        .transform(xfr.debugXfr, 'merged event stream: ')
-        .transducer(xfr.aggregateXfr) // aggregating transducer, null results are removed from the input stream
-        .transform(xfr.debugXfr, 'aggregate event stream: ')
+        .incXfr()      // simple +1 function applied to each element in turn
+        .isEvenXfr()   // filtering transform, returns null to indicate a filtered result
+        .debugXfr('merged event stream: ')
+        .aggregateXfr() // aggregating transducer, null results are removed from the input stream
+        .debugXfr('aggregate event stream: ')
         .toArray();
     
 
@@ -33,7 +42,7 @@ In this example data is pulled through the transformation and debug functions to
 .transform() functions are applied to each element in the input stream - transforming the input
 
 .transducer() 
-    functions are applied recursively to the input stream to greedily absorb the stream until an undefined value is received from the xdr
+    functions are applied recursively to the input stream to greedily absorb the stream until an undefined value is received from the the upstream data or from the transducer
 
 e.g. the aggregateXfr function returns the same value it receives effectively pulling all the data through the stream and creating an aggregated result.
 
@@ -85,3 +94,43 @@ Build a system where the primary purpose is to focus on the specification of the
 
 * make the function chain reactive
 * ensure immutable structures are used
+
+
+
+## Mapping
+
+## Filtering
+
+
+## Reducing
+
+## Flattening/Aggregation
+
+## Counting/Iterators
+
+
+## Combining
+
+
+## State/Conditionals
+
+## Splitting/Parallelising
+
+
+## Reactive
+
+
+
+## Changes
+
+
+* Added transducers and transformer functions into a dispatch map. This cleans up the execution synatx and means the object can be easily extended by just adding functions
+into the transducer.js or transformer.js file and then will automatically becomes available to use in a stream.
+
+* Array sequence now uses ES6 iterator (still needs to be converted to a fully async generator)
+
+* Added takeXdr, and TakeUntilXdr which will aggregate a defined number of elements together
+
+* Removed auto flattening from the transducer and added a flattenXdr to the library
+
+

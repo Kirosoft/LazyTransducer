@@ -2,13 +2,16 @@
  * Created by marknorman on 17/07/15.
  */
 
-var utils = require('./utils/utils-compiled.js');
+let utils = require('./utils/utils-compiled.js');
+let transducers = require('./transducers/transducers-compiled.js');
+let transformers = require('./transformers/transformers-compiled.js');
 
 class Sequence  {
     constructor(parent, params) {
         this._parent = parent;
         this._params = params;
         this._listeners = [];
+        this._cachedResult = null;
 
         // find the most upstream parent e.g. adam or eve :-)
         // register as a listener
@@ -16,7 +19,6 @@ class Sequence  {
             let adam = parent._getParentSource();
             adam.subscribe(this);
         }
-
         return this;
     }
 
@@ -24,8 +26,8 @@ class Sequence  {
         return new  ArraySequence(sourceData,null,params)
     }
 
-    transducer(xfr, params) {
-        return new TransducerSequence(this, xfr, params);
+    transducer(xdr, params) {
+        return new TransducerSequence(this, xdr, params);
     }
 
     transform(xfrm, params) {
@@ -39,7 +41,7 @@ class Sequence  {
         return new MergeSequence(null, streams.reverse(), params);
     }
 
-    _get() {
+    _get () {
         return this._parent._get();
     }
 
@@ -62,6 +64,27 @@ class Sequence  {
         return flattenResults ? utils.flatten(results) : results;
     }
 
+    _nextItemFunc() {
+
+        if (this._cachedResult === null) {
+            let parentRes = this._parent._get();
+            if (parentRes === undefined) {
+                return undefined;
+            } else if (utils.isArray(parentRes)) {
+                this._cachedResult = new ArraySequence(parentRes);
+            } else {
+                return parentRes;
+            }
+        }
+        let res = this._cachedResult._get();
+
+        if (res === undefined) {
+            this._cachedResult = null;
+            return this._nextItemFunc();
+        }
+        return res;
+    }
+
     subscribe(listener) {
         this._listeners.push(listener);
     }
@@ -75,43 +98,23 @@ class Sequence  {
     _change(data) {
         console.log("Change: "+data.toString());
     }
-
-    // each take a callback to receive data, for each upstream change
-    // i.e. this function is
-    each(callback) {
-        // if the source changes, update the callback function with the new data
-
-        return function() {};
-    }
 }
+
 
 class ArraySequence extends Sequence {
     constructor(arrayData, parent=null, params=null) {
         super(parent, params);
-        this._arrayData = arrayData;
-        this._pos = 0;
+        // TODO: These still need to be Async
+        this._iter = arrayData[Symbol.iterator]();
     };
 
-    reset() {
-        this._arrayData = [];
-        this._pos = 0;
+    reset(arrayData) {
+        this._iter = arrayData[Symbol.iterator]();
     }
 
     _get() {
-        // TODO: Use yield to make this async?
-        let item = this._arrayData[this._pos];
-
-        if (item !== undefined) {
-            this._pos++;
-        }
-
-        return item; // return undefined to indicate end of list
+        return this._iter.next().value;
     }
-
-    append(newData) {
-        this._arrayData.push(newData);
-    }
-
 }
 
 class TransducerSequence extends Sequence {
@@ -119,47 +122,32 @@ class TransducerSequence extends Sequence {
         super(parent, params);
         this._transducer = _transducer;
         this._predicate = predicate;
-        this._cachedResult = undefined;
-    };
+    }
 
-    // eagerly consume the available streamusing the supplied step function to return a new value
-    // if the step function return undefined then terminate and return the result so far
-    // if the step function returns a value, call the transform function to get a transformed value
-    // if the xfrmed value == undefined then the result has been filtered.
-    // Tail Recursive in ES6
-    _xdr(stepFunction, xdr, predicate, acc=[], params={}, flattenResults=true) {
+    // Transducers will eagerly (recursively) consume the available data or return undefined (to indicate completion)
+    // if xdr returns undefined then terminate and return the results so far
+    // The xdr will use a step function provided in the outer closure (when initialised) to get items (targets back to the super._get)
+    // Tail Recursive - hopefully should be optimised by transpiler ES6/2015
+    _xdr(xdr, acc = []) {
 
-        let newItem = stepFunction();
+        let res = xdr(acc);
 
-        if (typeof(newItem) === 'undefined') {
+        if (res === undefined) {
             return acc.length > 0 ? acc : undefined;
         } else {
-            let res = xdr(acc, newItem, predicate);
-
-            return res ? this._xdr(stepFunction, xdr, predicate, res, params, flattenResults) : acc;
+            return this._xdr(xdr, res);
         }
-    };
+    }
 
     _get() {
 
-        if (!this._cachedResult) {
-            // Take the current value and process the data via the transducer
-            let resArray = this._xdr(super._get.bind(this), this._transducer, this._predicate, [], this._params/*, flattenResults*/);
-            // Create a new array from the
-            if (resArray) {
-                this._cachedResult = new ArraySequence(resArray,this, this._params);
-            } else return resArray;
-        }
+        this._cachedResult = null;
 
-        let res = this._cachedResult._get();
+        // Create a closure to encapsulate any local state
+        let transducerInstance = this._transducer(this._nextItemFunc.bind(this), this._predicate, this._params);
 
-        // When the underlying stream is exhausted, clear from the cache
-        if (typeof(res) === 'undefined') {
-            this._cachedResult = undefined;
-            // recurse back in-case new stuff is now available up-stream
-            res = this._get();
-        }
-        return res;
+        // Take the current value and process the data via the transducer recursively
+        return this._xdr(transducerInstance, []);
     }
 }
 
@@ -170,7 +158,7 @@ class TransformSequence extends Sequence {
     };
 
     _get() {
-        let currentValue = super._get();
+        let currentValue = this._nextItemFunc();
 
         // Take the current value and process the data via the transducer
         return typeof(currentValue) !== "undefined" ? this._xfrm(currentValue, this._params) : currentValue;
@@ -181,19 +169,17 @@ class TransformSequence extends Sequence {
 class MergeSequence extends ArraySequence {
 
     constructor(parent, streams, params) {
-        super(parent, params);
+        super([], parent, params);
         this._parent = parent;
         this._streams = streams;
-        this._arrayData = [];
     };
 
     _get() {
 
-        // Check if we have reached the end of the current buffer
-        if (this._pos  === this._arrayData.length) {
+        let res = super._get();
 
-            // Clear down previous data
-            this.reset();
+        // Check if we have reached the end of the current buffer
+        if (res === undefined) {
 
             // pull data from all streams
             let streamVals = this._streams.reduce( (previousValue, stream) => {
@@ -204,31 +190,31 @@ class MergeSequence extends ArraySequence {
                 return previousValue;
             },[]);
 
-            this._arrayData = this._arrayData.concat(streamVals);
+            if (streamVals && streamVals.length > 0) {
+
+                // Reset the iterator with the new stream data
+                this.reset([].concat(streamVals));
+
+                // recurse to get the next value
+                return this._get();
+           }
         }
 
-        return this._pos  < this._arrayData.length ? super._get() : undefined;
+        return res;
     };
 
 }
 
-class SmartVarSequence extends Sequence {
-    constructor(parent, smartVar, params) {
-        super(parent,params);
-
-        this._smartVar = smartVar;
-        this.supportedPaths = [];
-
-
+// Install all available transduces as a dispatch map
+for (let xdr in transducers) {
+    Sequence.prototype[xdr] = function(params) {
+        return this.transducer(transducers[xdr], params);
     }
-
-    addPath(newPath) {
-        this.supportedPaths.push(newPath);
-        return this;
+}
+for (let xfrm in transformers) {
+    Sequence.prototype[xfrm] = function(params) {
+        return this.transform(transformers[xfrm], params);
     }
-
-    _newData(attr, data, filter) {}
-
 }
 
 module.exports = {

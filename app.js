@@ -12,15 +12,19 @@ var t2 = new lazy.ArraySequence([5,6,7,8]);
 var t3 = new lazy.ArraySequence([9,10,11,12]);
 
 var res = t1
-    //.transform(xfr.incXfr)
+    .incXfr()
     .merge(t2, t3)
-    .transform(xfr.incXfr)      // map op
-    //.transform(xfr.isEvenXfr)
-    .transform(xfr.debugXfr, 'merged event stream: ')
-    //.transducer(xdr.reduceXdr, predicates.everythingPdc)    // everything aggregated
-    .transducer(xdr.take2Xdr, predicates.everythingPdc)    // chunk into 2 element arrays
-    //.transducer(xdr.reduceXdr, predicates.notNullPdc)    // filter nulls
-    .transform(xfr.debugXfr, 'aggregate event stream: ')
-    .toArray();
+    .debugXfr('merged event stream: ')
+    //.reduceXdr(predicates.everythingPdc)    // everything aggregated
+    //.debugXfr('aggregate event stream: ')
+    //.takeXdr(3)
+    .takeUntilXdr(5)
+    .debugXfr('chunked stream: ')
+    .flattenXdr()
+    //.reduceXdr(predicates.notNullPdc)    // filter nulls
+    //.isEvenXfr()
+    .debugXfr('take event stream: ')
+    .toArray(false);
 
 console.log(res);
+

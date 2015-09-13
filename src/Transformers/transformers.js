@@ -12,7 +12,10 @@ var predicates = require('../predicates/predicates-compiled.js');
 
 exports.incXfr = x => x + 1;
 
-exports.isEvenXfr = x => predicates.isEvenPdc(x) ? x : null;
+exports.isEvenXfr = function(x) {
+    let res = predicates.isEvenPdc(x) ? x : null;
+    return res;
+};
 
 exports.debugXfr = (x,y) => {
     if (x) {
