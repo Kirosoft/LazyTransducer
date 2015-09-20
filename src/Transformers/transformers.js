@@ -17,18 +17,5 @@ exports.isEvenXfr = function(x) {
     return res;
 };
 
-exports.debugXfr = (x,y) => {
-    if (x) {
-        var str = '';
-        if (utils.isArray(x) && x.length > 0) {
-            str = utils.flatten(x).join(',');
-        } else {
-            str = ''+ x;
-        }
-        console.log(y + str)
-    }
-    return x;
-};
-
 
 exports.take = (x, max) => x;

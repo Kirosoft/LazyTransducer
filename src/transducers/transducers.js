@@ -43,6 +43,8 @@ exports.takeXdr = (newItemFunc, params) => {
                 count++;
                 res = acc;
             }
+        } else {
+            res = '<END>';
         }
 
         return res;
@@ -84,3 +86,26 @@ exports.flattenXdr = (newItemFunc, predicate, params) => {
         return acc;
     }
 };
+
+exports.debugXdr = (newItemFunc, y) => {
+
+    return function(acc) {
+
+        let x = newItemFunc(true);
+
+        if (x === undefined || x === utils.END_OF_SEQUENCE) {
+            console.log(y + ": "+ acc.toString());
+            return undefined;
+        }
+
+        acc.push(x);
+
+        return acc;
+    };
+};
+
+// skip
+
+// skipwhile
+
+// skipduplicates

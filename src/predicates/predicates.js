@@ -16,13 +16,9 @@ exports.countPdc = (maxItems) => {
         return res;
     }
 };
+
 exports.notEqualsPdc = (targetItem) => {
     return function(item) {
         return  targetItem !== item;
     }
 };
-
-
-
-
-

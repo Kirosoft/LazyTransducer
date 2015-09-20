@@ -10,15 +10,8 @@ class Sequence  {
     constructor(parent, params) {
         this._parent = parent;
         this._params = params;
-        this._listeners = [];
         this._cachedResult = null;
 
-        // find the most upstream parent e.g. adam or eve :-)
-        // register as a listener
-        if (parent) {
-            let adam = parent._getParentSource();
-            adam.subscribe(this);
-        }
         return this;
     }
 
@@ -46,7 +39,7 @@ class Sequence  {
     }
 
     _getParentSource() {
-        return this._parent ? this._parent._getParentSource() : this;
+        return this._parent ? this._parent._getParentSource() : null;
     }
 
     toArray(flattenResults = false) {
@@ -64,13 +57,17 @@ class Sequence  {
         return flattenResults ? utils.flatten(results) : results;
     }
 
-    _nextItemFunc() {
+    // Next item function that serialises the input into a single
+    // item stream
+    _nextItemFunc(chunk = false) {
+
+        if (chunk) {
+            return this._parent._get();
+        }
 
         if (this._cachedResult === null) {
             let parentRes = this._parent._get();
-            if (parentRes === undefined) {
-                return undefined;
-            } else if (utils.isArray(parentRes)) {
+            if (parentRes && utils.isArray(parentRes)) {
                 this._cachedResult = new ArraySequence(parentRes);
             } else {
                 return parentRes;
@@ -85,27 +82,53 @@ class Sequence  {
         return res;
     }
 
-    subscribe(listener) {
-        this._listeners.push(listener);
+    subscribe(callback) {
+        this._parent.subscribe(callback);
+    }
+
+}
+
+class SequenceSource extends Sequence {
+    constructor(parent, params) {
+        super(parent, params);
+        this._listeners = [];
+    }
+
+    _init() {
+        // subscribe to a parent source sequence (if available)
+        let parentSource = this._parent ? this._parent._getParentSource() : null;
+
+        if (parentSource) {
+            parentSource.subscribe(this._notify.bind(this));
+        }
+    }
+
+    add(data) {
+
+        this._listeners.forEach((listener) => {
+            listener(data);
+        });
     }
 
     _notify(data) {
-        this._listeners.forEach((listener) => {
-            listener._change(data);
-        })
+        console.log("intenal notify: "+data.toString());
+
+        // notify downstream listeners
+        this.add(data);
     }
 
-    _change(data) {
-        console.log("Change: "+data.toString());
+    subscribe(callback) {
+        this._listeners.push(callback);
     }
+
 }
 
-
-class ArraySequence extends Sequence {
+class ArraySequence extends SequenceSource {
     constructor(arrayData, parent=null, params=null) {
         super(parent, params);
         // TODO: These still need to be Async
         this._iter = arrayData[Symbol.iterator]();
+        this._init();
     };
 
     reset(arrayData) {
@@ -115,6 +138,11 @@ class ArraySequence extends Sequence {
     _get() {
         return this._iter.next().value;
     }
+
+    _getParentSource() {
+        return this;
+    }
+
 }
 
 class TransducerSequence extends Sequence {
@@ -132,7 +160,10 @@ class TransducerSequence extends Sequence {
 
         let res = xdr(acc);
 
-        if (res === undefined) {
+        if (res ===  utils.END_OF_SEQUENCE) {
+            acc.push( utils.END_OF_SEQUENCE);
+        }
+        if (res === undefined || res ===  utils.END_OF_SEQUENCE) {
             return acc.length > 0 ? acc : undefined;
         } else {
             return this._xdr(xdr, res);
@@ -140,8 +171,6 @@ class TransducerSequence extends Sequence {
     }
 
     _get() {
-
-        this._cachedResult = null;
 
         // Create a closure to encapsulate any local state
         let transducerInstance = this._transducer(this._nextItemFunc.bind(this), this._predicate, this._params);
@@ -165,14 +194,24 @@ class TransformSequence extends Sequence {
     }
 }
 
-
 class MergeSequence extends ArraySequence {
 
     constructor(parent, streams, params) {
         super([], parent, params);
+        this._streams = streams || [];
         this._parent = parent;
-        this._streams = streams;
+
+        this._mergeInit();
     };
+
+    _mergeInit() {
+
+        // subscribe to all the source streams that this sequence is dependant upon
+        this._streams.forEach( (stream) => {
+            stream.subscribe(this._notify.bind(this))
+        });
+
+    }
 
     _get() {
 
@@ -203,6 +242,12 @@ class MergeSequence extends ArraySequence {
         return res;
     };
 
+}
+
+class SequenceListener extends Sequence {
+    constructor(parent, params) {
+        super(parent, params);
+    }
 }
 
 // Install all available transduces as a dispatch map

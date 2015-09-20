@@ -14,6 +14,7 @@ Key enhancements:
 
 Note: Written using ES6/ES2015 javascript features
 
+
 Experimental javascript implementation of transducers with a lazily evaluated function chain. 
 
 
@@ -123,6 +124,7 @@ Build a system where the primary purpose is to focus on the specification of the
 
 ## Changes
 
+* Add reactive callback features
 
 * Added transducers and transformer functions into a dispatch map. This cleans up the execution synatx and means the object can be easily extended by just adding functions
 into the transducer.js or transformer.js file and then will automatically becomes available to use in a stream.

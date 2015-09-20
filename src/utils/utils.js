@@ -152,3 +152,4 @@ exports.isObjLiteral = function isObjLiteral(_obj) {
     );
 };
 
+exports.END_OF_SEQUENCE = "<END>";
