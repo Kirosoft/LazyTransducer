@@ -14,6 +14,7 @@ exports.incXfr = x => x + 1;
 
 exports.isEvenXfr = function(x) {
     let res = predicates.isEvenPdc(x) ? x : null;
+    console.log("res: "+x+ " = "+res);
     return res;
 };
 

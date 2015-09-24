@@ -21,5 +21,8 @@
   "bugs": {
     "url": "https://github.com/Kirosoft/LazyTransducer/issues"
   },
-  "homepage": "https://github.com/Kirosoft/LazyTransducer#readme"
+  "homepage": "https://github.com/Kirosoft/LazyTransducer#readme",
+  "dependencies": {
+    "babel": "^5.8.23"
+  }
 }

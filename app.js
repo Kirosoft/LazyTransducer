@@ -26,13 +26,23 @@ var res = t1
     //.debugXdr('take event stream: ')
     .toArray(false);
 
-var t4 = new lazy.ArraySequence([]);
+var base1 = new lazy.ArraySequence([]);
+
+var t4 = base1
+        //.incXfr()
+        //.isEvenXfr()
+        .merge(t3);
+
 
 t4.subscribe(function(data) {
-    ///
+    //
     console.log("data: "+data.toString());
+    console.log("via stream: "+t4.toArray(false));
 });
 
 console.log(res);
 
-t4.add("hello");
+
+
+base1.add([1,4,6]);
+base1.add([2,5,7]);

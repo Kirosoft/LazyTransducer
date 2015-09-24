@@ -2,6 +2,7 @@
  * Created by marknorman on 17/07/15.
  */
 
+require("babel/polyfill");
 let utils = require('./utils/utils-compiled.js');
 let transducers = require('./transducers/transducers-compiled.js');
 let transformers = require('./transformers/transformers-compiled.js');
@@ -83,6 +84,14 @@ class Sequence  {
     }
 
     subscribe(callback) {
+
+        // Create a wrapper function to pull the new data throught the transform functions
+        //var callbackWrapperFunc = function(data) {
+        //    // pull the data through the pipeline
+        //    let res = this.toArray();
+        //    callback(res);
+        //}.bind(this);
+        //
         this._parent.subscribe(callback);
     }
 
@@ -105,13 +114,15 @@ class SequenceSource extends Sequence {
 
     add(data) {
 
+        this._arrayData.push(data);
+
         this._listeners.forEach((listener) => {
             listener(data);
         });
     }
 
     _notify(data) {
-        console.log("intenal notify: "+data.toString());
+        console.log("internal notify: "+data.toString());
 
         // notify downstream listeners
         this.add(data);
@@ -126,13 +137,27 @@ class SequenceSource extends Sequence {
 class ArraySequence extends SequenceSource {
     constructor(arrayData, parent=null, params=null) {
         super(parent, params);
-        // TODO: These still need to be Async
-        this._iter = arrayData[Symbol.iterator]();
         this._init();
+
+        this.reset(arrayData);
+    };
+
+    *_iterator() {
+        let i = 0;
+
+        while (true) {
+            if (i < this._arrayData.length) {
+                yield this._arrayData[i];
+                i++;
+            } else {
+                yield undefined;
+            }
+        }
     };
 
     reset(arrayData) {
-        this._iter = arrayData[Symbol.iterator]();
+        this._arrayData = arrayData || this._arrayData;
+        this._iter = this._iterator();
     }
 
     _get() {
@@ -208,9 +233,9 @@ class MergeSequence extends ArraySequence {
 
         // subscribe to all the source streams that this sequence is dependant upon
         this._streams.forEach( (stream) => {
+            stream.reset();
             stream.subscribe(this._notify.bind(this))
         });
-
     }
 
     _get() {

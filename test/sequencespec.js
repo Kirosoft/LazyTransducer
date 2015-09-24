@@ -1,16 +1,17 @@
 var lazy = require('../src/Sequence-compiled.js');
 var xfr = require('../src/transformers/transformers-compiled.js');
-
+var xdr = require('../src/transducers/transducers-compiled.js');
+var predicates = require('../src/predicates/predicates-compiled.js');
 
 var assert = require("assert");
 
-describe('SequenceArray', function() {
-    describe('combined filter transforms', function () {
-
-        new lazy.ArraySequence([1, 2, 3, 4,5, 6, 7, 8])
-                .transduce(xfr.Take, 1);
-    });
-});
+//describe('SequenceArray', function() {
+//    describe('combined filter transforms', function () {
+//
+//        new lazy.ArraySequence([1, 2, 3, 4,5, 6, 7, 8])
+//                .Take(1);
+//    });
+//});
 
 
 describe('SequenceArray', function() {
@@ -21,15 +22,19 @@ describe('SequenceArray', function() {
         var t3 = new lazy.ArraySequence([9,10,11,12]);
 
         var res = t1
-            //.transform(xfr.incXfr)
+            //.incXfr()
             .merge(t2, t3)
-            .transform(xfr.incXfr)      // map op
-            .transform(xfr.isEvenXfr)
-            .transform(xfr.debugXfr, 'merged event stream: ')
-            .transducer(xfr.aggregateXdr)
-            .transform(xfr.debugXfr, 'aggregate event stream: ')
-            .toArray();
-
+            .debugXdr('merged event stream')
+            //.reduceXdr(predicates.everythingPdc)    // everything aggregated
+            //.debugXfr('aggregate event stream: ')
+            .takeXdr(3)
+            //.takeUntilXdr(5)
+            .debugXdr('chunked stream')
+            .flattenXdr()
+            //.reduceXdr(predicates.notNullPdc)    // filter nulls
+            //.isEvenXfr()
+            //.debugXdr('take event stream: ')
+            .toArray(false);
         console.log(res);
 
         it('should return filtered result', function () {
